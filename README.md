@@ -18,3 +18,8 @@ NotebookではなくPython3のコードのみのファイルも公開してお�
 |:---|:---|:---|:---|
 | Kaggleデータ分析Notebook | test.ipynb | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/fork-of-titanic-first-test.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/fork-of-titanic-first-test.ipynb) |
 | Kaggleデータ分析Notebook | test.py |:---|:---|
+
+## LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）
+前職で作ったLINE・スプレッドシート連携アプリのコードです。
+LINEでの入力により現場画像付きの見積書をすばやく作成し、PDFファイルとして取引先に送付することができます。
+アプリのために作成した業務用LINEアカウント（公式アカウントと呼ばれています）とユーザーが友達になり、対話形式で求められる情報を入力していきます。
