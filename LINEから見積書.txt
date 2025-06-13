@@ -1,0 +1,660 @@
+【コード.gs】
+const CHANNEL_ACCESS_TOKEN = 'ceWesLFSrUHfImHQSd0bHyP0UDPzxd4JI/QnJ4iDSJA317R3EZLXTh3M9O0LymdMrE2KfFI9yKF9R/YGiB9xseOo8UdWBOFnJnTLuBp0ZYvqlcsKSwWzr1WNH4hvJ35pGTg1WqLyfSLL0fLq6s0n9QdB04t89/1O/w1cDnyilFU=';
+const GOOGLE_DRIVE_FOLDER_ID = '1E02fOTfn5_GW3OQpCBy-BST8-ctOLk1Z'; // 親フォルダ（'Personal Folders'）のID
+const TemplateID = '1c4OR8S6-SowSdhu62tOpIBiG8uN4PuSSjogUQ5wWVyE'; // 見積書テンプレのファイルID
+
+const SS = SpreadsheetApp.getActiveSpreadsheet(); // Spreadsheet"LINEから見積書"
+const Lsheet = SS.getSheetByName("事業地一覧"); // 事業地一覧（ロケーション）シートのID
+const Usheet = SS.getSheetByName("ユーザー情報"); // ユーザー情報シートのID
+const ID_data = Usheet.getRange(1, 4, Usheet.getLastRow()).getValues();
+
+// CurrentTime, UserDateRow をグローバル変数として宣言
+const CurrentTime = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyyMMdd_HHmmss");
+let UserDataRow = 0;
+
+
+function doPost(e) {
+  if (typeof e === "undefined") {
+    return;
+  }
+
+  // POSTリクエストをJSONデータにパース
+  const receiveJSON = JSON.parse(e.postData.contents);
+  const events = receiveJSON.events;
+  const event = events[0];
+  
+  userID_seach(event.source.userId);  // UserDataRowが入力される
+
+
+  // ポストバックのときの処理
+  if (event.type == 'postback') {
+    if (event.postback.data == '始めからやり直す') {
+      Usheet.getRange(UserDataRow, 7).setValue("idle");
+      // 新たにmessageプロパティを追加
+      event.message = {
+        type: 'text',
+        text: '事業地登録'
+      };
+
+    } else if (event.postback.data == 'もう一度草稿を作成する') {
+      Usheet.getRange(UserDataRow, 7).setValue('Drafting');
+      // 新たにmessageプロパティを追加
+      event.message = {
+        type: 'text',
+        text: '草稿をチェックする'
+      };
+
+    } else if (event.postback.data == 'もう一度見積書を発行する') {
+      Usheet.getRange(UserDataRow, 7).setValue('FinalStep');
+      // 新たにmessageプロパティを追加
+      event.message = {
+        type: 'text',
+        text: '見積書発行'
+      };
+
+    } else return;
+  }
+
+
+  // テキストメッセージ、画像メッセージ以外のとき（動画・スタンプなど）は無視
+  // if (event.message.type !== "text" && event.message.type !== "image") {
+    // return;
+  // }
+
+  // まずはユーザー登録をさせる、登録していなければ何もさせない
+  if (event.message.type == "text" && event.message.text === "登録") {  // メッセージ送信者のデータスペース（行）を作成
+    Usheet.appendRow([ , , , event.source.userId, , , "name"]);
+    LINE_send_reply(event.replyToken, "利用者登録を開始します。\nフルネーム（姓名の間にスペース）を入力してください。");
+    return;
+  }
+
+  if (UserDataRow == 0) {
+    LINE_send_reply(event.replyToken, "まずは利用者登録をしてください！\n「登録」というメッセージを送ると利用者登録を開始します。");
+    return;
+  }
+  let user_status = Usheet.getRange(UserDataRow, 7).getValue();
+
+
+  
+
+
+  // ここからはユーザー登録の一連の流れ
+  if (user_status === "name") {  // ユーザーの名前を登録、その名前のフォルダを作成、そのフォルダ内に"photo"フォルダを作る
+    const name = event.message.text;
+    Usheet.getRange(UserDataRow, 1).setValue(name);
+    const folder = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
+    const newFolder = folder.createFolder(name);
+    const imageFolder = newFolder.createFolder('photo');
+    LINE_send_reply(event.replyToken, "携帯電話番号（ハイフンなし）を入力してください。");
+    Usheet.getRange(UserDataRow, 5, 1, 3).setValues([[newFolder.getId(), imageFolder.getId(), "celler"]]);
+    return;
+  }
+  if (user_status === "celler") {  // 携帯電話番号を登録
+    Usheet.getRange(UserDataRow, 2).setValue('（' + event.message.text + '）');
+    LINE_send_reply(event.replyToken, "メールアドレスを入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("Email");
+    return;
+  }
+  if (user_status === "Email") {  // メールアドレスを登録
+    Usheet.getRange(UserDataRow, 3).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "利用者登録が完了しました。\nこれからよろしくお願いします。");
+    Usheet.getRange(UserDataRow, 7).setValue("idle");
+    return;
+  }
+
+
+  // 画像が含まれているイベントを処理
+  if (event.message.type == "image") {
+    for (const ImgEvent of events) {
+      if (ImgEvent.message.type == "image") {
+        const messageId = ImgEvent.message.id;
+        const LINE_END_POINT = "https://api-data.line.me/v2/bot/message/" + messageId + "/content";
+        getImage(LINE_END_POINT, ImgEvent.replyToken);
+      }
+    }
+    return;
+  }
+  if (event.message.text === "画像アップロード") {
+    LINE_send_reply(event.replyToken, "画像を送信してください。複数枚を同時アップロードできます。\n画像は自動で幅500pxに縮小されます。\n見積書に使用されると消去されますので、アーカイブとしては使えません。");
+    return;
+  }
+
+
+  // これより下はテキストメッセージの処理
+  // 画像メッセージのとき以外は複数のイベントが発生しないので、
+  // 最初のイベントのみを使用し、ループしない
+
+  // << Usheetのstatus一覧 >>
+  //  name：フルネーム入力待ち  celler：携帯電話番号入力待ち  Email：メアド入力待ち  idle：事業地登録待ち
+  //  company：会社名入力待ち  place：物件名入力待ち  address：住所入力待ち  CarSpaces：車室数入力待ち
+  //  monthly：月額入力待ち  start：開始月入力待ち  initial：初期費用入力待ち  Drafting：草稿チェック待ち　FinalStep：PDF作成待ち
+  //  note1：特記事項１入力待ち  note2：特記事項１入力待ち  note3：特記事項１入力待ち  note4：特記事項１入力待ち
+
+
+  // ここからは事業地登録の一連の流れ
+  if (event.message.text === "事業地登録") {
+    // 事業地登録や見積書作成作業の途中で「事業地登録」のメッセージを受け取った場合、
+    // 新たに事業地登録を始めからやり直すのか、選択させる。
+    if (user_status !== "idle") {
+      if (user_status === "Drafting" || user_status === "FinalStep") {
+        send_quickReply(event.replyToken, "見積書作成");
+        return;
+      } else {
+        send_quickReply(event.replyToken, "事業地登録");
+        return;
+      }
+    }
+    const codeNum = Lsheet.getRange('E1').getValue();
+    const code = "cs" + codeNum.toString().padStart(4, '0');
+    const name = Usheet.getRange(UserDataRow, 1).getValue();
+    Lsheet.appendRow([CurrentTime, code, name]);
+    LINE_send_reply(event.replyToken, "事業地登録を開始します。\nまずは運営会社名を入力してください。");
+    Usheet.getRange(UserDataRow, 7, 1, 2).setValues([['company', '']]);
+    return;
+  }
+  const LnewRow = userQuote_seach();
+  if (user_status === "company") {
+    Lsheet.getRange(LnewRow, 4).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "物件名を入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("place");
+    return;
+  } else if (user_status === "place") {
+    Lsheet.getRange(LnewRow, 5).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "物件の住所を入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("address");
+    return;
+  } else if (user_status === "address") {
+    Lsheet.getRange(LnewRow, 6).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "物件の現況を入力してください。（台数など）");
+    Usheet.getRange(UserDataRow, 7).setValue("CarSpaces");
+    return;
+  } else if (user_status === "CarSpaces") {
+    Lsheet.getRange(LnewRow, 7).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "月額を入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("monthly");
+    return;
+  } else if (user_status === "monthly") {
+    Lsheet.getRange(LnewRow, 8).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "開始月を入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("start");
+    return;
+  } else if (user_status === "start") {
+    Lsheet.getRange(LnewRow, 9).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "初回費用を入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("initial");
+    return;
+  } else if (user_status === "initial") {
+    Lsheet.getRange(LnewRow, 10).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "入力ありがとうございました！\nこれから詳細事項の入力に入ります。\n「年間一括払い」\n「年３回巡回」\n「清掃・刈草廃棄費用も含む」\n以外の特記事項があれば、４行まで記入できます。\n\n登録は文章でお願いします。特記事項がなければ「終了」と入力してください。\n\nでは、特記事項１つ目をお願いします。");
+    Usheet.getRange(UserDataRow, 7).setValue("note1");
+    return;
+  } else if (event.message.text === "終了" && (user_status === "note1" || user_status === "note2" || user_status === "note3"|| user_status === "note4")) {
+    Usheet.getRange(UserDataRow, 7).setValue("Drafting");
+    user_status = 'Drafting';
+    const codeNum = Lsheet.getRange('E1').getValue() + 1;
+    Lsheet.getRange('E1').setValue(codeNum);
+    LINE_send_reply(event.replyToken, 'ご苦労様でした。これで事業地登録を終了します。\n\nこの事業地の画像アップロードは完了していますか？\n画像アップロード完了後、【草稿Check】ボタンをタップしてください。');
+    return;
+  } else if (user_status === "note1") {
+    Lsheet.getRange(LnewRow, 11).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "特記事項２つ目をお願いします。なければ「終了」と入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("note2");
+    return;
+  } else if (user_status === "note2") {
+    Lsheet.getRange(LnewRow, 12).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "特記事項３つ目をお願いします。なければ「終了」と入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("note3");
+    return;
+  } else if (user_status === "note3") {
+    Lsheet.getRange(LnewRow, 13).setValue(event.message.text);
+    LINE_send_reply(event.replyToken, "特記事項４つ目をお願いします。なければ「終了」と入力してください。");
+    Usheet.getRange(UserDataRow, 7).setValue("note4");
+    return;
+  } else if (user_status === "note4") {
+    Lsheet.getRange(LnewRow, 14).setValue(event.message.text);
+    Usheet.getRange(UserDataRow, 7).setValue("Drafting");
+    user_status = 'Drafting';
+    const codeNum = Lsheet.getRange('E1').getValue() + 1;
+    Lsheet.getRange('E1').setValue(codeNum);
+    LINE_send_reply(event.replyToken, 'ご苦労様でした。これで事業地登録を終了します。\n\nこの事業地の画像アップロードは完了していますか？\n画像アップロード完了後、【草稿Check】ボタンをタップしてください。');
+    return;
+  }
+
+
+  // 草稿を仕上げてもらう
+  if (event.message.text === '草稿をチェックする') {
+    if (user_status === 'Drafting') {
+      const QuoteURL = Quote_create();
+      LINE_send_reply(event.replyToken, "見積書草稿のリンクを送ります。\n修正が必要ならお願いします。\n\n" + QuoteURL);
+      Usheet.getRange(UserDataRow, 7).setValue("FinalStep");
+      return;
+    } else if (user_status === 'FinalStep') {
+      send_quickReply2(event.replyToken, "草稿を作成");
+      return;
+    }
+    
+  }
+
+
+  // 見積書のPDF化とメール送信
+  if (event.message.text === '見積書発行') {
+    if (user_status === 'FinalStep') {
+      PDFcreate_send();
+
+      // 個人フォルダ内photoフォルダを空にする
+      const imageFolderID = Usheet.getRange(UserDataRow, 6).getValue();
+      const imageFolder = DriveApp.getFolderById(imageFolderID);
+      let files = imageFolder.getFiles();
+      while(files.hasNext()){
+        let file = files.next();
+        file.setTrashed(true);  // ファイルをゴミ箱へ移動
+      }
+
+      LINE_send_reply(event.replyToken, "見積書を登録アドレスに送信しました。\nご確認ください。\n\n保存してファイル名を変更した上、取引先にお渡しください。");
+      Usheet.getRange(UserDataRow, 7).setValue('idle');
+
+    } else if (user_status === 'idle') {
+      send_quickReply2(event.replyToken, "見積書を発行");
+    }
+  }
+}
+
+
+function userID_seach(userId) {  // メッセージ送信者のuserIDの行番号を見つける
+  const arrData = ID_data.flat();
+  UserDataRow = arrData.lastIndexOf(userId) + 1;  // userIDが見つからないときはUserDataRow=0になる
+}
+
+function userQuote_seach() {  // メッセージ送信者が登録した事業地の行番号を見つける
+  const Name = Usheet.getRange(UserDataRow, 1).getValue();
+  // 事業地シートからユーザー名が一致する最下行を見つける
+  const NameColumn = Lsheet.getRange(1, 3, Lsheet.getLastRow()).getValues();
+  const arrData = NameColumn.flat();
+  const Quote_row = arrData.lastIndexOf(Name) + 1;  // これが該当物件の行数
+  return Quote_row;
+}
+
+
+function LINE_send_reply(replyToken, text) {  // 即時性のある返信メッセージを送るときに使う
+  const postData = {
+    "replyToken": replyToken,
+    "messages": [{
+      "type": "text",
+      "text": text,
+    }]
+  };
+
+  let options = {
+    "method": "post",
+    "headers": {
+      "Content-Type": "application/json; charset=UTF-8",
+      "Authorization": "Bearer " + CHANNEL_ACCESS_TOKEN,
+    },
+    "payload": JSON.stringify(postData)
+  };
+
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", options);
+}
+
+
+function LINE_send_push(userId, text) {  // 即時性のある返信ではなく、こちらからメッセージを送るときに使う
+  const postData = {
+    "to": userId,
+    "messages": [{
+      "type": "text",
+      "text": text,
+    }]
+  };
+
+  let options = {
+    "method": "post",
+    "headers": {
+      "Content-Type": "application/json; charset=UTF-8",
+      "Authorization": "Bearer " + CHANNEL_ACCESS_TOKEN,
+    },
+    "payload": JSON.stringify(postData)
+  };
+
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", options);
+}
+
+
+
+
+function getImage(LINE_END_POINT, replyToken) {
+
+  try {
+    const headers = {
+      "Content-Type": "application/json; charset=UTF-8",
+      "Authorization": "Bearer " + CHANNEL_ACCESS_TOKEN
+    };
+
+    const options = {
+      "method": "get",
+      "headers": headers,
+    };
+
+    const res = UrlFetchApp.fetch(LINE_END_POINT, options);
+    //画像を取得し、ファイル名を設定する
+    //ファイル名: YYYYMMDD_HHmmss
+    const imageName = CurrentTime + ".jpg"
+    const imageBlob = res.getBlob().getAs("image/jpeg").setName(imageName);
+
+    const folderID = Usheet.getRange(UserDataRow, 6).getValue();
+    const folder = DriveApp.getFolderById(folderID);
+    const file = folder.createFile(imageBlob);
+    const resizedImage = ImgApp.doResize(file.getId(), 500);  // 横幅500pxにする
+    file.setTrashed(true);  // 元のファイルは消去、リサイズしたファイルを残す
+    folder.createFile(resizedImage.blob.setName(imageName));
+
+    const message = "画像を１個保存しました";
+    LINE_send_reply(replyToken, message);
+
+  } catch (e) {
+    Logger.log(e.message);
+  }
+}
+
+function Quote_create () {
+  // 登録者情報を取得
+  const U_data = Usheet.getRange(UserDataRow, 1, 1, 6).getValues();
+  const Name = U_data[0][0];
+  const Celler = U_data[0][1];
+  const UserFolderID = U_data[0][4];
+  const PhotoFolderID = U_data[0][5];
+
+  // 事業地シートからユーザー名が一致する最下行を見つける
+  const NameColumn = Lsheet.getRange(1, 3, Lsheet.getLastRow()).getValues();
+  const arrData = NameColumn.flat();
+  const Quote_row = arrData.lastIndexOf(Name) + 1;  // これが該当物件の行数
+  // 物件情報を取得
+  const L_data = Lsheet.getRange(Quote_row, 4, 1, 11).getValues().flat();  // 一次元配列に直した
+  // L_data[0]：会社名　[1]：物件名　[2]：住所　[3]：車室数　[4]：月額
+  //       [5]：開始月　[6]：初回費用　[7-10]：特記事項１～４
+
+  // 見積書テンプレを個人フォルダにコピーする
+  const TempFile = DriveApp.getFileById(TemplateID);
+  const ToFolder = DriveApp.getFolderById(UserFolderID);
+  const Quote = TempFile.makeCopy(L_data[1] + CurrentTime.slice(0, 8), ToFolder);  // ファイル名（例）：物件名20240721
+  const QuoteURL = Quote.getUrl();
+  Usheet.getRange(UserDataRow, 8).setValue(QuoteURL);  // 作成中の見積書としてIDを記入
+
+  // 見積書に項目を記入する
+  const Qsheet = SpreadsheetApp.openByUrl(QuoteURL).getSheetByName('見積書'); // シート'見積書'のオブジェクト
+  Qsheet.getRange('B4').setValue(L_data[0] + ' 御中');
+  Qsheet.getRange('H12').setValue(L_data[1]);
+  Qsheet.getRange('H13').setValue(L_data[2]);
+  Qsheet.getRange('H14').setValue(L_data[3]);
+  Qsheet.getRange('F18').setValue(L_data[4]);
+
+  // 初年度が何ヶ月なのかを求める
+  if (L_data[5] < 4) {
+    const months = 4 - L_data[5];
+    const initial = L_data[4] * months;  // initial.toLocaleString()として使い、３桁ごとにカンマを入れる
+    const str = '初年度は ' + L_data[5] + ' 月～ 3 月の ' + months + ' か月間のため、 ' + initial.toLocaleString() + ' 円（外税）となります。';
+    Qsheet.getRange('C20').setValue(str);
+  } else {
+    const months = 16 - L_data[5];
+    const initial = L_data[4] * months;
+    const str = '初年度は ' + L_data[5] + ' 月～翌年 3 月の ' + months + ' か月間のため、 ' + initial.toLocaleString() + ' 円（外税）となります。'
+    Qsheet.getRange('C20').setValue(str);
+  }
+
+  Qsheet.getRange('F21').setValue(L_data[6]);
+  Qsheet.getRange('B26').setValue(L_data[7]);
+  Qsheet.getRange('B27').setValue(L_data[8]);
+  Qsheet.getRange('B28').setValue(L_data[9]);
+  Qsheet.getRange('B29').setValue(L_data[10]);
+  Qsheet.getRange('O40').setValue('【営業部】 ' + Name + ' ' + Celler);
+
+
+  // ここからは画像をセル内に貼り付ける一連の流れ
+  const PhotoFolder = DriveApp.getFolderById(PhotoFolderID);
+  let PhotoIds = [];
+
+  let files = PhotoFolder.getFiles();  // フォルダ内のすべてのファイルを取得、pngでもjpgでもSSでも取得
+  while (files.hasNext()) {
+    let file = files.next();
+
+    // ファイルが画像ならば、IDを記録
+    if (file.getMimeType().startsWith('image/')) {  // こうすれば画像ファイルのみをフィルタできる
+      PhotoIds.push(file.getId());
+    }
+  }
+
+  const pieces = Math.min(PhotoIds.length, 60);  // 画像は最大で60枚、60枚以上は無視するための変数
+  const Pages = Math.ceil(pieces / 6);  // 画像に使うページ数
+  Qsheet.deleteRows(40 + Pages * 41, (10 - Pages) * 41);  // テンプレの画像添付ページ10のうち使わないページは削除
+
+  // 画像をすべてblobからbase64形式に変換する
+  let b64images = [];
+  for (let i = 0; i < pieces; i++) {
+    const blob = DriveApp.getFileById(PhotoIds[i]).getBlob();
+    const contentType = blob.getContentType();
+    const base64 = Utilities.base64Encode(blob.getBytes());
+    const imageStr = "data:" + contentType + ";base64, " + base64;
+    b64images[i] = SpreadsheetApp.newCellImage()
+                              .setSourceUrl(imageStr)
+                              .build();
+  }
+
+  // 画像をセル内に挿入する
+  for (let i = 0; i < pieces; i++) {
+    // 複雑な式だが、b64images[i]に対して挿入すべきセルを指定している
+    let j = Math.floor(i / 6);
+    switch (i % 6) {
+      case 0:
+      case 2:
+      case 4:
+        Qsheet.getRange(43 + (i % 6) * 6.5 + 41 * j, 3).setValue(b64images[i]);
+        break;
+      case 1:
+      case 3:
+      case 5:
+        Qsheet.getRange(43 + (i % 6 - 1) * 6.5 + 41 * j, 15).setValue(b64images[i]);
+        break;
+    }
+  }
+
+  return QuoteURL;
+}
+
+
+【PDF作成.gs】
+/**
+ * スプレッドシートをPDF化し、Gmailで送信するメイン関数
+ */
+function PDFcreate_send() {
+  const QuoteURL = Usheet.getRange(UserDataRow, 8).getValue();
+  const Q_SS = SpreadsheetApp.openByUrl(QuoteURL);
+  const Sheet = Q_SS.getSheetByName('見積書');
+
+  const UserFolderID = Usheet.getRange(UserDataRow, 5).getValue();
+  const UserFolder = DriveApp.getFolderById(UserFolderID);
+
+  const Qblob = fetchPdfBlob(Q_SS.getId(), Sheet);
+  Qblob.setName(Q_SS.getName() + '.pdf');
+  UserFolder.createFile(Qblob);
+  Utilities.sleep(10000); // APIレート制限対策
+
+  //メールを作成する
+  const recipient = Usheet.getRange(UserDataRow, 3).getValue(); // ユーザーにメールを送る
+  const subject = "見積書_" + Qblob.getName(); // 件名
+  const body = "Google_Appsです。\n見積書を作成しました。\nご確認ください。\n\n保存してファイル名を変更した上、取引先にお渡しください。"; // 本文
+  const options = {
+    attachments: Qblob,
+    noReply:true // 返信不要
+  };
+  // 送信
+  // GmailApp.createDraft(recipient, subject, body, options);
+  GmailApp.sendEmail(recipient, subject, body, options);
+}
+
+
+/**
+ * PDFファイルとしてシートをフェッチし、Blobとして返す。
+ * @param {string} spreadsheetId スプレッドシートのID
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet シート
+ * @return {GoogleAppsScript.Base.Blob} PDF Blob
+ */
+function fetchPdfBlob(spreadsheetId, sheet) {
+  try {
+    const pdfUrl = preparePdfUrl(spreadsheetId, sheet.getSheetId());
+    const options = {
+      headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() }
+    };
+    const response = UrlFetchApp.fetch(pdfUrl, options);
+
+    return response.getBlob().setName(sheet.getName() + '.pdf');
+
+  } catch (error) {
+    Logger.log('PDFの取得エラー: ' + error.toString());
+    throw new Error('PDFの取得中にエラーが発生しました。');
+  }
+
+  
+
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", options);
+
+
+
+}
+
+/**
+ * PDF生成のためのURLを準備する。
+ * @param {string} spreadsheetId スプレッドシートのID
+ * @param {string} sheetId シートのID
+ * @return {string} PDF生成URL
+ */
+function preparePdfUrl(spreadsheetId, sheetId) {
+  // PDFの設定オプション
+  const options = {
+    size: 'A4',                       // 用紙サイズ (A4)
+    portrait: 'true',                 // 用紙の向き（falseは横向き）
+    fitw: 'true',                     // ページ幅に合わせるか（falseは原寸大）
+    top_margin: '0.50',               // 上の余白（0.50cm）
+    right_margin: '0.10',             // 右の余白（0.10cm）
+    bottom_margin: '0.50',            // 下の余白（0.50cm）
+    left_margin: '0.33',              // 左の余白（0.33cm）
+    sheetnames: 'false',              // シート名の表示（falseは非表示）
+    printtitle: 'false',              // スプレッドシート名の表示（falseは非表示）
+    pagenum: 'UNDEFINED',             // ページ番号の位置（'UNDEFINED'は非表示）
+    scale: '1',                       // 印刷の拡大/縮小（1:標準100% 2:幅に合わせる 3:高さに合わせる 4:ページに合わせる）
+    horizontal_alignment: 'LEFT',   // 水平方向の位置（LEFT/CENTER/RIGHT）
+    vertical_alignment: 'TOP',     // 垂直方向の位置（TOP/MIDDLE/BOTTOM）
+    gridlines: 'false',               // グリッドラインの表示（falseは非表示）
+    fzr: 'false',                     // 固定行の表示（falseは非表示）
+    fzc: 'false'                      // 固定列の表示（falseは非表示）
+  };
+
+  let url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=pdf&id=${spreadsheetId}&gid=${sheetId}`;
+  Object.keys(options).forEach(key => {
+    url += `&${key}=${options[key]}`;
+  });
+  return url;
+}
+
+
+【quickReply.gs】
+// 途中の作業をリセットするかクイックリプライで選択させる
+// situationは "見積書作成" or "事業地登録"
+function send_quickReply(replyToken, situation) {
+
+  // クイックリプライメッセージ
+  const msg = [
+    {
+      "type": "text",
+      "text": "現在" + situation + "の途中ですが、事業地登録を始めからやり直しますか？",
+      "quickReply": {
+        "items": [
+          {
+            "type": "action",
+            "action": {
+              "type": "postback",
+              "label": "始めからやり直す",
+              "displayText": "始めからやり直す",
+              "data": "始めからやり直す"
+            }
+          },
+          {
+            "type": "action",
+            "action": {
+              "type": "postback",
+              "label": situation + "の続きをやる",
+              "displayText": situation + "の続きをやる",
+              "data": situation + "の続きをやる"
+            }
+          }
+        ]
+      }
+    }
+  ];
+
+  const postData = {
+    "replyToken": replyToken,
+    "messages": msg
+  };
+
+  let options = {
+    "method": "post",
+    "headers": {
+      "Content-Type": "application/json; charset=UTF-8",
+      "Authorization": "Bearer " + CHANNEL_ACCESS_TOKEN,
+    },
+    "payload": JSON.stringify(postData)
+  };
+
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", options);
+}
+
+
+// 途中の作業をリセットするかクイックリプライで選択させる
+// situationは "草稿を作成" or "見積書を発行"
+function send_quickReply2(replyToken, situation) {
+
+  // クイックリプライメッセージ
+  const msg = [
+    {
+      "type": "text",
+      "text": "すでに" + situation + "済みですが、作り直しますか？",
+      "quickReply": {
+        "items": [
+          {
+            "type": "action",
+            "action": {
+              "type": "postback",
+              "label": "もう一度" + situation + "する",
+              "displayText": "もう一度" + situation + "する",
+              "data": "もう一度" + situation + "する"
+            }
+          },
+          {
+            "type": "action",
+            "action": {
+              "type": "postback",
+              "label": "作り直さない",
+              "displayText": "作り直さない",
+              "data": "作り直さない"
+            }
+          }
+        ]
+      }
+    }
+  ];
+
+  const postData = {
+    "replyToken": replyToken,
+    "messages": msg
+  };
+
+  let options = {
+    "method": "post",
+    "headers": {
+      "Content-Type": "application/json; charset=UTF-8",
+      "Authorization": "Bearer " + CHANNEL_ACCESS_TOKEN,
+    },
+    "payload": JSON.stringify(postData)
+  };
+
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", options);
+}
