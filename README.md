@@ -3,9 +3,9 @@
 すべて自作のコードですので、ご自由にダウンロードしてください。
 
 ## ファイル一覧
-- Kaggleデータ分析処理のコード（Notebook）
+- Kaggleデータ分析処理のコード（Notebook）  
     Titanic.ipynb
-- Kaggleデータ分析処理のコード（Python）
+- Kaggleデータ分析処理のコード（Python）  
     Titanic.py
 - LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）  
     LINEから見積書.txt  
