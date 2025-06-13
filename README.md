@@ -4,11 +4,11 @@
 
 ## ファイル一覧
 - Kaggleデータ分析処理のコード（Notebook）  
-    Titanic.ipynb
+　　　　Titanic.ipynb
 - Kaggleデータ分析処理のコード（Python）  
-    Titanic.py
+　　　　Titanic.py
 - LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）  
-    LINEから見積書.txt  
+　　　　LINEから見積書.txt  
 - Java掲示板アプリのコード（Java）  
 - OutlookVBAメール自動返信のコード（VBA）  
 - ExcelVBAビッグデータ処理コード  
