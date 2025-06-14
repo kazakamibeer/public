@@ -8,7 +8,7 @@
 - Kaggleデータ分析処理のコード（Python）  
 　　　　Titanic.py
 - LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）  
-　　　　[ダウンロード](./LINEから見積書.txt) "LINEから見積書.txt"  
+　　　　"LINEから見積書.txt" [ダウンロード](./LINEから見積書.txt)  
 - Java掲示板アプリのコード（Java）  
 - OutlookVBAメール自動返信のコード（VBA）  
 - ExcelVBAビッグデータ処理コード  
