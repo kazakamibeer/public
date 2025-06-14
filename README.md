@@ -22,7 +22,7 @@ NotebookではなくPython3のコードのみのファイルも公開してお�
 | 内容 | ファイル名 | Colab | Kaggle (py310) |
 | :-- | :-- | :-- | :-- | 
 | Kaggleデータ分析Notebook | titanic-a-set-of-fundamental-analyses.ipynb | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) |
-| Kaggleデータ分析Notebook | test.py | | |
+| Kaggleデータ分析PythonCode | titanic_code_only.py | | |
   
 ## LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）
 前職で作ったLINE・スプレッドシート連携アプリのコードです。
