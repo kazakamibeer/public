@@ -5,7 +5,7 @@
 ## ファイル一覧
 詳細は各ファイルの段落をご覧ください。
 - Kaggleデータ分析処理のコード（Notebook）  
-　　　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細ページ](titanic-a-set-of-fundamental-analyses.ipynb)
+　　　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細ページ](titanic-a-set-of-fundamental-analyses.ipynb)  
   　　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)
 - Kaggleデータ分析処理のコード（Python）  
 　　　　"titanic_code_only.py" [詳細ページ](titanic_code_only.py)
