@@ -148,7 +148,7 @@ data.loc[(data['Survived'].isnull()) & (data['Surname'].isin(Dead_List)), ['Sex'
 data.loc[(data['Survived'].isnull()) & (data['Surname'].isin(Survived_List)), ['Sex', 'Age', 'Title', 'Surname']] = ['female', 5.0, 'Mrs', 'Winslet']
 
 
-print("data.loc[data['Surname']=='DiCaprio'].head()")
+print(data.loc[data['Surname']=='DiCaprio'].head())
 
 
 # ----------- Ticket ----------------
@@ -175,7 +175,7 @@ feature = data[useful_list]
 
 # ラベル特徴量をワンホットエンコーディング
 feature = pd.get_dummies(feature)  # このとき特徴量は25個
-print('feature.head(3)')
+print(feature.head(3))
 
 
 # データセットを trainとtestに分割
@@ -262,14 +262,46 @@ X_train_20, X_test_20 = standard_scaler(X_train_20, X_test_20)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold
 
+
+rf_params = {
+    'random_state': 10,
+    'n_estimators': 26,
+    'max_depth': 6,
+    'max_features': 'sqrt',
+    'random_state': 0
+}
+# アンサンブル学習用の弱いパラメータ
+rf_weak_params = {
+    'n_estimators': 10,      # 木の本数を少なく（小規模なアンサンブル）
+    'max_depth': 2,          # 各木を浅く（過学習を防ぐ）
+    'max_leaf_nodes': 4,     # 各木の最大葉ノード数を4つに制限（複雑化の防止）
+    'max_features': 1,       # 各分割時に1つの特徴量のみ検討（ランダム性↑＋単純化）
+    'min_samples_leaf': 10,  # 各葉に最低10サンプル必要（安定したノード）
+    'n_jobs': -1,            # 並列処理（速度向上のため）
+    'random_state': 0
+}
+
 # RandomForestClassifierをcvで実行する関数
-def rf_predict(X_train_df, y_train, X_test_df):
+def rf_predict(X_train_df, y_train, X_test_df, params=None):
+    # デフォルトのパラメータ（指定されなかった場合に使用）
+    default_params = {
+        'random_state': 10,
+        'n_estimators': 26,
+        'max_depth': 6,
+        'max_features': 'sqrt',
+        'random_state': 0
+    }
+    # 渡されたパラメータで上書き
+    if params is not None:
+        default_params.update(params)
+    
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
     
     oof_rf = np.zeros(len(X_train_df))  # X_trainへの正値予測確率を入れる
     y_preds = []  # 各分割ごとの正値予測確率を入れる
+    feature_importances = []  # 各特徴量の重要度（寄与度）を表すスコア（和１）を入れる
 
-
+    
     for train_idx, valid_idx in cv.split(X_train_df, y_train):
         X_tr, X_va = X_train_df.iloc[train_idx], X_train_df.iloc[valid_idx]
         y_tr = y_train[train_idx]
@@ -285,6 +317,9 @@ def rf_predict(X_train_df, y_train, X_test_df):
         # クラス1（＝正例）の確率を取得
         y_preds.append(model_rf.predict_proba(X_test_df)[:, 1])
         oof_rf[valid_idx] = model_rf.predict_proba(X_va)[:, 1]
+
+        # 各foldのfeature_importances_ を保存
+        feature_importances.append(model_rf.feature_importances_)
     
     
     #-- テストデータ予測（CV平均） --#
@@ -294,7 +329,10 @@ def rf_predict(X_train_df, y_train, X_test_df):
     y_pred_oof = (oof_rf > 0.5).astype(int)
     print("OOF Accuracy (rf):", accuracy_score(y_train, y_pred_oof))
 
-    return oof_rf, proba_rf
+    # 平均feature_importanceを計算
+    avg_importance = np.mean(feature_importances, axis=0)
+
+    return oof_rf, proba_rf, avg_importance
 
 
 # -------------------------------------------
@@ -305,10 +343,8 @@ import lightgbm as lgb
 # from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 
-# lightgbmをcvで実行する関数
-def lgbm_predict(X_train_df, y_train, X_test_df):
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
-    params = {
+
+lgbm_params = {
         'objective': 'binary',       # 2クラス分類タスク
         'metric': 'binary_logloss',  # 学習中の評価指標（default）
         'learning_rate': 0.05,       # 学習率
@@ -320,13 +356,31 @@ def lgbm_predict(X_train_df, y_train, X_test_df):
         'verbose': -1,               # ログ出力抑制
         'random_state': 0            # 
     }
+# アンサンブル学習用の弱いパラメータ
+lgbm_weak_params = {
+    'objective': 'binary',
+    'metric': 'binary_logloss',
+    'learning_rate': 0.3,        # 学習率を大きく（早く収束して木が浅くなる）
+    'num_leaves': 4,             # 葉の数を極端に少なくして弱く
+    'max_depth': 2,              # 木の深さを制限（浅い木に）
+    'min_data_in_leaf': 20,      # 各リーフに必要な最小データ数を増やす
+    'feature_fraction': 0.5,     # 特徴量サブサンプリング
+    'bagging_fraction': 0.5,     # データサブサンプリング
+    'bagging_freq': 1,
+    'verbose': -1,
+    'random_state': 0
+}
+
+# lightgbmをcvで実行する関数
+def lgbm_predict(X_train_df, y_train, X_test_df, params):
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
     categorical_features = []
 
     oof_lgbm = np.zeros(len(X_train_df))  # X_trainへの正値予測確率を入れる
     y_preds = []  # 各分割ごとの正値予測確率を入れる
     models = []   # 各分割ごとの学習したモデルを入れる
     scores = []   # 各分割ごとのbinary_loglossを入れる
-
+    feature_importances = []  # 各foldの特徴量重要度を格納
 
     for fold_id, (train_idx, valid_idx) in enumerate(cv.split(X_train_df, y_train)):
         X_tr, X_va = X_train_df.iloc[train_idx], X_train_df.iloc[valid_idx]
@@ -358,6 +412,11 @@ def lgbm_predict(X_train_df, y_train, X_test_df):
         # best_scoreは２次元dict, valid_1もbinary_loglossもkey
         scores.append(model_lgbm.best_score['valid_1']['binary_logloss'])
 
+        # 特徴量重要度（gain）を保存
+        feature_importances.append(
+            model_lgbm.feature_importance(importance_type='gain')
+        )
+
     #-- テストデータ予測（CV平均） --#
     proba_lgbm = np.mean(y_preds, axis=0)
 
@@ -370,7 +429,15 @@ def lgbm_predict(X_train_df, y_train, X_test_df):
     y_pred_oof = (oof_lgbm > 0.5).astype(int)
     print("OOF Accuracy (lgbm):", accuracy_score(y_train, y_pred_oof))
 
-    return oof_lgbm, proba_lgbm
+    # 特徴量重要度（平均）
+    avg_importance = np.mean(feature_importances, axis=0)
+    feature_names = X_train_df.columns
+    importance_df = pd.DataFrame({
+        'feature': feature_names,
+        'importance_gain_mean': avg_importance
+    }).sort_values(by='importance_gain_mean', ascending=False)
+
+    return oof_lgbm, proba_lgbm, importance_df
 
 
 # -------------------------------------------
@@ -412,52 +479,83 @@ def build_model(input_dim=18, learning_rate=0.001):
     
     return model
 
+# アンサンブル学習用の弱いモデル
+def build_weak_model(input_dim=18, learning_rate=0.01):
+    model = Sequential()
+
+    # 小さな1層のみ＋正則化
+    model.add(Dense(8, input_dim=input_dim, activation='relu', kernel_initializer=HeNormal()))
+    model.add(Dropout(0.3))
+
+    # 出力層
+    model.add(Dense(1, activation='sigmoid'))
+
+    optimizer = Adam(learning_rate=learning_rate)
+
+    model.compile(
+        optimizer=optimizer,
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    return model
+
 #from sklearn.model_selection import StratifiedKFold
 from keras.callbacks import EarlyStopping
 #from sklearn.metrics import accuracy_score
 
-# NeuralNetworkをcvで実行する関数
-def nn_predict(X_train_df, y_train, X_test_df):
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
-    early_stop = EarlyStopping(
+# NeuralNetworkのパラメータ
+early_stop = EarlyStopping(
         monitor='val_loss',
         min_delta=1e-4,  # 小さな改善を無視　val_accuracyなら1e-3
         patience=10,     # 10エポック改善なければ停止
         verbose=1,
         restore_best_weights=True  # 推奨：最良モデルに戻す
     )
+# アンサンブル学習用の弱いパラメータ（早めに止める）
+early_stop_weak = EarlyStopping(
+        monitor='val_loss',
+        min_delta=1e-3,  # 小さな改善を認めない
+        patience=5,      # 短くして早めに打ち切る
+        verbose=0,
+        restore_best_weights=True
+    )
+
+# NeuralNetworkをcvで実行する関数
+def nn_predict(X_train_df, y_train, X_test_df, build_model_fn, early_stopping_cb):
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 
     oof_nn = np.zeros(len(X_train_df))  # X_trainへの正値予測確率を入れる
-    y_preds = []  # 各分割ごとの正値予測確率を入れる
-    histories = []  # 各分割ごとのモニタリングに使う
-
+    y_preds = []    # 各分割ごとの正値予測確率を入れる
+    histories = []  # 各分割ごとの学習履歴
 
     for fold_id, (train_idx, valid_idx) in enumerate(cv.split(X_train_df, y_train)):
         X_tr, X_va = X_train_df.iloc[train_idx], X_train_df.iloc[valid_idx]
         y_tr, y_va = y_train[train_idx], y_train[valid_idx]
 
-        model_nn = build_model(input_dim=X_tr.shape[1])
+        # 渡された build_model_fn を使ってモデル作成
+        model_nn = build_model_fn(input_dim=X_tr.shape[1])
         # 最初のfoldのみモデル構造を表示
         if fold_id == 0:
             model_nn.summary()
-    
+
         history = model_nn.fit(
             X_tr, y_tr,
             validation_data=(X_va, y_va),
             epochs=100,
             batch_size=32,
-            callbacks=[early_stop],
+            callbacks=[early_stopping_cb],
             verbose=0
         )
         histories.append(history)
-    
+
         y_preds.append(model_nn.predict(X_test_df).flatten())
         oof_nn[valid_idx] = model_nn.predict(X_va).flatten()
 
     #-- テストデータ予測（CV平均） --#
     proba_nn = np.mean(y_preds, axis=0)
 
-    # NNでの学習状況の可視化
+    # 学習履歴の可視化（省略可）
     for fold_id, history in enumerate(histories):
         plt.plot(history.history['accuracy'], label='Train Accuracy')
         plt.plot(history.history['val_accuracy'], label='Val Accuracy')
@@ -468,7 +566,7 @@ def nn_predict(X_train_df, y_train, X_test_df):
         plt.grid(True)
         plt.show()
 
-    # OOF精度確認 
+    # OOF精度表示
     y_pred_oof = (oof_nn > 0.5).astype(int)
     print("OOF Accuracy (NN):", accuracy_score(y_train, y_pred_oof))
 
@@ -483,40 +581,68 @@ def nn_predict(X_train_df, y_train, X_test_df):
 sub = pd.read_csv('../input/titanic/gender_submission.csv')
 
 print('\n----------- [rf_6] session start -----------\n')
-oof_rf_6, proba_rf_6 = rf_predict(X_train_6, y_train, X_test_6)
+oof_rf_6, proba_rf_6, avg_importance = rf_predict(X_train_6,
+                                                  y_train,
+                                                  X_test_6,
+                                                  params=rf_params)
 sub['Survived'] = (proba_rf_6 > 0.5).astype(int)
 sub.to_csv('sub_rf_6.csv', index=False)
 
 print('\n----------- [nn_6] session start -----------\n')
-oof_nn_6, proba_nn_6 = nn_predict(X_train_6, y_train, X_test_6)
+oof_nn_6, proba_nn_6 = nn_predict(X_train_6,
+                                  y_train,
+                                  X_test_6,
+                                  build_model_fn=build_model,
+                                  early_stopping_cb=early_stop)
 sub['Survived'] = (proba_nn_6 > 0.5).astype(int)
 sub.to_csv('sub_nn_6.csv', index=False)
 
 print('\n----------- [lgbm_12] session start -----------\n')
-oof_lgbm_12, proba_lgbm_12 = lgbm_predict(X_train_12, y_train, X_test_12)
+oof_lgbm_12, proba_lgbm_12, importance_df = lgbm_predict(X_train_12,
+                                                         y_train,
+                                                         X_test_12,
+                                                         params=lgbm_params)
 sub['Survived'] = (proba_lgbm_12 > 0.5).astype(int)
 sub.to_csv('sub_lgbm_12.csv', index=False)
 
 print('\n----------- [nn_12] session start -----------\n')
-oof_nn_12, proba_nn_12 = nn_predict(X_train_12, y_train, X_test_12)
+oof_nn_12, proba_nn_12 = nn_predict(X_train_12, 
+                                    y_train,
+                                    X_test_12,
+                                    build_model_fn=build_model,
+                                    early_stopping_cb=early_stop)
 sub['Survived'] = (proba_nn_12 > 0.5).astype(int)
 sub.to_csv('sub_nn_12.csv', index=False)
 
 print('\n----------- [rf_20] session start -----------\n')
-oof_rf_20, proba_rf_20 = rf_predict(X_train_20, y_train, X_test_20)
+oof_rf_20, proba_rf_20, avg_importance = rf_predict(X_train_20,
+                                                    y_train,
+                                                    X_test_20,
+                                                    params=rf_params)
 sub['Survived'] = (proba_rf_20 > 0.5).astype(int)
 sub.to_csv('sub_rf_20.csv', index=False)
 
 print('\n----------- [lgbm_20] session start -----------\n')
-oof_lgbm_20, proba_lgbm_20 = lgbm_predict(X_train_20, y_train, X_test_20)
+oof_lgbm_20, proba_lgbm_20, importance_df = lgbm_predict(X_train_20,
+                                                         y_train,
+                                                         X_test_20,
+                                                         params=lgbm_params)
 sub['Survived'] = (proba_lgbm_20 > 0.5).astype(int)
 sub.to_csv('sub_lgbm_20.csv', index=False)
 
 print('\n----------- [nn_20] session start -----------\n')
-oof_nn_20, proba_nn_20 = nn_predict(X_train_20, y_train, X_test_20)
+oof_nn_20, proba_nn_20 = nn_predict(X_train_20,
+                                    y_train,
+                                    X_test_20,
+                                    build_model_fn=build_model,
+                                    early_stopping_cb=early_stop)
 sub['Survived'] = (proba_nn_20 > 0.5).astype(int)
 sub.to_csv('sub_nn_20.csv', index=False)
 
+
+# -------------------------------------------------------------------------
+# 5) １層目の出力をアンサンブルする（２層目モデル）
+# -------------------------------------------------------------------------
 
 test_preds = pd.DataFrame({'rf_6': proba_rf_6,
                            'nn_6': proba_nn_6,
@@ -525,7 +651,7 @@ test_preds = pd.DataFrame({'rf_6': proba_rf_6,
                            'rf_20': proba_rf_20,
                            'lgbm_20': proba_lgbm_20,
                            'nn_20': proba_nn_20})
-print('test_preds.corr()')
+print(test_preds.corr())
 
 
 # -------------------------------------------
@@ -549,7 +675,7 @@ train_preds = pd.DataFrame({'rf_6': oof_rf_6,
                            'nn_20': oof_nn_20})
 # 学習データへの正解ラベル: y_train
 
-print('train_preds.corr()')
+print(train_preds.corr())
 
 # train_predsを６個の特徴量で作ったが、相関を見て５個の特徴量に絞る。
 # ここからは rf_20 はカットする。
@@ -601,46 +727,43 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, log_loss
 
 # メタモデル：ランダムフォレスト
-meta_model = RandomForestClassifier(
-    n_estimators=10,            # 木の本数を少なく（小規模なアンサンブル）
-    max_depth=2,                # 各木を浅く（過学習を防ぐ）
-    max_leaf_nodes=4,           # 各木の最大葉ノード数を4つに制限（複雑化の防止）
-    max_features=1,             # 各分割時に1つの特徴量のみ検討（ランダム性↑＋単純化）
-    min_samples_leaf=10,        # 各葉に最低10サンプル必要（安定したノード）
-    n_jobs=-1,                  # 並列処理（速度向上のため）
-    random_state=0              # 再現性のための乱数固定
-)
-
-# 学習
-meta_model.fit(train_preds, y_train)
+meta_oof_rf, meta_proba_rf, avg_importance = rf_predict(train_preds,
+                                                        y_train,
+                                                        test_preds,
+                                                        params=rf_weak_params)
 
 # 重みの代わりにフィーチャーインポータンスを見る
-importances = meta_model.feature_importances_
 print("Feature importances (model weights):")
-for name, imp in zip(train_preds.columns, importances):
+for name, imp in zip(train_preds.columns, avg_importance):
     print(f"{name}: {imp:.4f}")
 
 #-- テストデータに適用して最終出力を生成 --#
-meta_proba_rf = meta_model.predict_proba(test_preds)[:, 1]
 sub['Survived'] = (meta_proba_rf > 0.5).astype(int)
 sub.to_csv('sub_ensemble_rf.csv', index=False)
-
-# 最終予測は確率で求めなくてもよい（分類タスク：0 or 1）
-# sub['Survived'] = meta_model.predict(test_preds)
 
 
 # -------------------------------------------
 # 5-4 LightGBMアンサンブル
 
-oof, meta_proba_lgbm = lgbm_predict(train_preds, y_train, test_preds)
+# paramsにアンサンブル用のweak_paramsを使用
+meta_oof_lgbm, meta_proba_lgbm, importance_df = lgbm_predict(train_preds,
+                                                             y_train,
+                                                             test_preds,
+                                                             params=lgbm_weak_params)
 sub['Survived'] = (meta_proba_lgbm > 0.5).astype(int)
 sub.to_csv('sub_ensemble_lgbm.csv', index=False)
+print(importance_df)
 
 
 # -------------------------------------------
 # 5-5 NeuralNetworkアンサンブル
 
-oof, meta_proba_nn = nn_predict(train_preds, y_train, test_preds)
+# アンサンブル用のパラメータbuild_weak_model, early_stop_weakを使用
+meta_oof_nn, meta_proba_nn = nn_predict(train_preds,
+                                        y_train,
+                                        test_preds,
+                                        build_model_fn=build_weak_model,
+                                        early_stopping_cb=early_stop_weak)
 sub['Survived'] = (meta_proba_nn > 0.5).astype(int)
 sub.to_csv('sub_ensemble_nn.csv', index=False)
 
@@ -649,14 +772,35 @@ sub.to_csv('sub_ensemble_nn.csv', index=False)
 # 6) ２層目の出力をアンサンブル（３層目モデル）
 # -------------------------------------------------------------------------
 
-meta_preds = pd.DataFrame({'meta_logi': meta_proba_logi,
-                           'meta_rf': meta_proba_rf,
-                           'meta_lgbm': meta_proba_lgbm,
-                           'meta_nn': meta_proba_nn})
-print('meta_preds.corr()')
+meta_oof_preds = pd.DataFrame({'meta_rf': meta_oof_rf,
+                               'meta_lgbm': meta_oof_lgbm,
+                               'meta_nn': meta_oof_nn})
+meta_proba_preds = pd.DataFrame({'meta_rf': meta_proba_rf,
+                                 'meta_lgbm': meta_proba_lgbm,
+                                 'meta_nn': meta_proba_nn})
 
+print(meta_oof_preds.corr())
 
-# 各行に対して平均を適用
-meta_ensemble_proba = meta_preds.apply(lambda x: x.mean() , axis=1)
+# メタモデル：過学習を最大限に抑えたロジスティック回帰
+meta_model = LogisticRegression(
+    penalty='l2',             # L2正則化（重みをゼロに近づける）
+    #solver='liblinear',       # 特徴量が少ないときやL1/L2で安定
+    solver='lbfgs',           # より一般的・高速なソルバーに変更
+    fit_intercept=False,      # オフセット項なし（モデルを単純に）
+    C=0.01,                   # 正則化を強く（小さいほどペナルティが強い）
+    max_iter=1000,            # 十分な収束を保証（エラー防止用）
+    random_state=0
+)
+meta_model.fit(meta_oof_preds, y_train)
+
+weights = meta_model.coef_.flatten()  # meta_model.coef_はshape (1, n_features)
+weights = weights / weights.sum()  # 合計が1になるようにスケーリング
+print("Optimized Model weights:", weights)
+
+#-- テストデータに適用して最終出力を生成 --#
+meta_ensemble_proba = np.dot(meta_proba_preds, weights)
 sub['Survived'] = (meta_ensemble_proba > 0.5).astype(int)
 sub.to_csv('sub_meta_ensemble.csv', index=False)
+
+# ↓単純平均による最終出力の方が良い結果が出た
+# meta_ensemble_proba = meta_preds.apply(lambda x: x.mean() , axis=1)
