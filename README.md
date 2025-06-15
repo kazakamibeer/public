@@ -3,7 +3,7 @@
 すべて自作のコードですので、ご自由にご利用ください。
 
 # ファイル一覧
-詳細は下記各ファイルの段落をご覧ください。
+### 詳細は下記各ファイルの段落をご覧ください。
 - Kaggleデータ分析処理のコード（Notebook）  
 　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細](titanic-a-set-of-fundamental-analyses.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)
