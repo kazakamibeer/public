@@ -1,0 +1,407 @@
+Sub auto_open()
+    Worksheets("ホーム").Activate
+    Range("E8").Select
+End Sub
+
+
+
+Sub データ読み取り()
+'
+' データ読み取り Macro
+'
+    Dim i As Integer
+    Dim Row As Integer
+    Dim f As Integer
+    
+    f = Range("E8").Value
+    
+    ' データスペースを空欄にする
+    Sheets("データスペース").Select
+    Range("A1:F30000").Clear
+    ' データの行数を読み取る（ここでは0のはず）
+    Row = WorksheetFunction.CountA(Range("A1:A30000"))
+    
+    ' データをファイルから転記
+    For i = f To 1 Step -1
+        Windows("CallRecord" & i & ".csv").Activate
+        Range("A5:H10000").Select
+        Selection.Copy
+        Windows("応答率集計.xlsm").Activate
+        Sheets("データスペース").Select
+        
+        Cells(Row + 1, 1).Select
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+        Application.CutCopyMode = False
+        
+        Row = WorksheetFunction.CountA(Range("A1:A30000"))  ' データの行数を読み取る
+        Workbooks("CallRecord" & i & ".csv").Close
+    Next i
+    
+End Sub
+
+
+Sub データを整える()
+'
+' データを整える Macro
+'
+    Dim i As Integer
+    i = 0
+        
+    Dim Row As Integer
+    Row = WorksheetFunction.CountA(Range("A1:A30000"))
+
+    ' まずは日付と時刻をセルに分離させる
+    Columns("F").Select  ' F列に空白の列を追加
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Columns("E").Select  ' E列に空白の列を追加
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Columns("D").Select  ' D列に空白の列を追加
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Columns("C").Select  ' C列の日付と時刻を分離
+    Selection.TextToColumns Destination:=Range("C1"), DataType:=xlFixedWidth, _
+        FieldInfo:=Array(Array(0, 1), Array(10, 1)), TrailingMinusNumbers:=True
+    Columns("E").Select  ' E列の日付と時刻を分離
+    Selection.TextToColumns Destination:=Range("E1"), DataType:=xlFixedWidth, _
+        FieldInfo:=Array(Array(0, 1), Array(10, 1)), TrailingMinusNumbers:=True
+    Columns("G").Select  ' G列の日付と時刻を分離
+    Selection.TextToColumns Destination:=Range("G1"), DataType:=xlFixedWidth, _
+        FieldInfo:=Array(Array(0, 1), Array(10, 1)), TrailingMinusNumbers:=True
+    
+    ' 電話番号が３桁になるセルを見つける
+    For i = Row To 1 Step -1
+        ' A列のセルの値が3桁である場合
+        If Len(Cells(i, 1).Value) = 3 Then
+            Rows(i).Delete
+            
+        ' A列のセルの値が"非通知"である場合
+        ElseIf Cells(i, 1).Value = "非通知" Then
+            Rows(i).Delete
+        End If
+        
+    Next i
+    
+    ' 電話番号でデータを並び替え
+    ActiveWorkbook.Worksheets("データスペース").Sort.SortFields.Add2 Key:=Range( _
+        Cells(1, 1), Cells(Row, 1)), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:= _
+        xlSortNormal
+    With ActiveWorkbook.Worksheets("データスペース").Sort
+        .SetRange Range(Cells(1, 1), Cells(Row, 11))
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    
+    
+End Sub
+
+Sub 呼損を整理()
+'
+' 呼損を整理 Macro
+'
+    Dim i As Integer
+    i = 0
+    Dim Row As Integer
+    Row = WorksheetFunction.CountA(Range("A1:A30000"))
+    
+    ' 呼損を見つけ、無視すべき呼損の電話番号を999にする
+    For i = 1 To Row
+        If Cells(i, 11).Value = "NO ANSWER" Then
+            If Cells(i, 9).Value <= 20 Then  ' 20秒以内に切れた呼損
+                Cells(i, 1).Value = 999
+                
+            ElseIf i = 1 Then  ' i=1 のとき、これ以降のIf文が不要で、かつ条件式の i-1 が使えないので、ここで分岐
+                GoTo CONTINUE  '「CONTINUE」というラベルにジャンプ
+            
+            ElseIf Cells(i, 1).Value = Cells(i - 1, 1).Value Then ' 一行上に同一電話番号があるとき
+            
+                If Cells(i - 1, 11).Value = "ANSWERED" Then  ' 20分以内に電話に出られたとき
+                    If (Cells(i - 1, 5).Value = Cells(i, 5).Value And Cells(i - 1, 6).Value - Cells(i, 6).Value < 0.0138889) Then
+                        Cells(i, 1).Value = 999
+                    ElseIf (Cells(i - 1, 5).Value - Cells(i, 5).Value = 1 And Cells(i, 6).Value - Cells(i - 1, 6).Value > 0.98611) Then
+                        Cells(i, 1).Value = 999
+                    End If
+                
+                ElseIf Cells(i - 1, 11).Value = "NO ANSWER" Then  ' 20分以内に呼損があるとき→古い呼損は無効にする
+                    If (Cells(i - 1, 3).Value = Cells(i, 3).Value And Cells(i - 1, 4).Value - Cells(i, 4).Value < 0.0138889) Then
+                        Cells(i, 1).Value = 999
+                    ElseIf (Cells(i - 1, 3).Value - Cells(i, 3).Value = 1 And Cells(i, 4).Value - Cells(i - 1, 4).Value > 0.98611) Then
+                        Cells(i, 1).Value = 999
+                    End If
+                End If
+                
+            End If
+        End If
+CONTINUE:  ' i=1のときのみ、If文を抜けてここに飛ぶ
+    Next i
+    
+    For i = Row To 1 Step -1
+        If Cells(i, 1).Value = 999 Then
+            Rows(i).Delete
+        End If
+    Next i
+
+End Sub
+
+
+Sub 集計準備()
+'
+' 集計準備 Macro
+'
+    Dim i As Integer
+    Dim Ji As Integer
+    
+    Dim Row As Integer
+    Row = WorksheetFunction.CountA(Range("A1:A30000"))  ' データの行数を読み取る
+    
+    ' 時間でソートしてから日付でソート
+    ActiveWorkbook.Worksheets("データスペース").Sort.SortFields.Clear
+    ' 時間でソート
+    ActiveWorkbook.Worksheets("データスペース").Sort.SortFields.Add2 Key:=Range( _
+        Cells(1, 4), Cells(Row, 4)), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:= _
+        xlSortNormal
+    With ActiveWorkbook.Worksheets("データスペース").Sort
+        .SetRange Range(Cells(1, 1), Cells(Row, 11))
+        .Header = xlGuess
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    ActiveWorkbook.Worksheets("データスペース").Sort.SortFields.Clear
+    ' 日付でソート
+    ActiveWorkbook.Worksheets("データスペース").Sort.SortFields.Add2 Key:=Range( _
+        Cells(1, 3), Cells(Row, 3)), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:= _
+        xlSortNormal
+    With ActiveWorkbook.Worksheets("データスペース").Sort
+        .SetRange Range(Cells(1, 1), Cells(Row, 11))
+        .Header = xlGuess
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ' E列～J列,を削除する
+    Columns("E:J").Delete
+    
+    ' D列に空白の列を追加
+    Columns("D").Insert
+    Columns("D").ClearFormats
+    
+    ' 時刻の時のみを分離してD列に入力
+    For i = 1 To Row
+        Ji = hour(Cells(i, 5).Value)
+        Cells(i, 4).Value = Ji
+    Next i
+
+End Sub
+
+Sub 集計()
+    Dim Row As Integer
+    Dim i As Integer
+    Dim j As Integer
+
+    Dim CountArray(0 To 31, 0 To 23, 0 To 1) As Integer  ' １番目の引数は日付で、日付0は時間別集計に使う
+    Erase CountArray  ' 初期化
+    
+    Dim Nen As Integer  ' 日付の年
+    Dim Tsuki As Integer  ' 日付の月
+    Dim Hi As Integer  ' 日付の日
+    Dim Ji As Integer  ' 時刻の時
+    
+    Dim Worst1, Worst2, Worst3 As Integer
+        
+    Row = WorksheetFunction.CountA(Range("A1:A30000"))  ' データの行数を読み取る
+    Nen = Year(Cells(3, 3).Value)
+    Tsuki = Month(Cells(3, 3).Value)
+    
+    ' 着信数，呼損数をカウントし、配列に入れる。
+    For i = 1 To Row
+        Hi = Day(Cells(i, 3).Value)
+        Ji = Cells(i, 4).Value
+        
+        ' 日付、時刻、登場回数の配列にデータを格納
+        CountArray(Hi, Ji, 0) = CountArray(Hi, Ji, 0) + 1  ' (hi, ji, 0)には着信数
+        
+        If Cells(i, 6).Value = "NO ANSWER" Then
+            CountArray(Hi, Ji, 1) = CountArray(Hi, Ji, 1) + 1  ' (hi, ji, 1)には呼損数
+        End If
+    Next i
+    
+    ' シート"集計詳細"にカウント結果を書き込む
+    Sheets("集計詳細").Select
+    Range("C9:AG9").Interior.Color = RGB(221, 235, 247)
+    Cells(1, 1) = Nen
+    Cells(2, 1) = Tsuki
+    LastDayOfMonth = Format(DateSerial(Nen, Tsuki + 1, 0), "d")  ' 翌月の0日＝今月の末日を使い、月の日数を求める式
+    
+    ' 日別詳細
+    For i = 1 To LastDayOfMonth  ' iは日の変数
+        Cells(14 + i * 8, 2) = Tsuki & "月"
+        
+        For j = 0 To 23  ' jは時の変数
+            Cells(16 + i * 8, 3 + j) = CountArray(i, j, 0)  ' 着信数
+            Cells(17 + i * 8, 3 + j) = CountArray(i, j, 0) - CountArray(i, j, 1) '応答数
+            Cells(18 + i * 8, 3 + j) = CountArray(i, j, 1)  ' 呼損数
+            If CountArray(i, j, 0) <> 0 Then
+                Cells(19 + i * 8, 3 + j) = Cells(17 + i * 8, 3 + j) / CountArray(i, j, 0) ' 応答率
+            Else
+                Cells(19 + i * 8, 3 + j) = "-"
+            End If
+        Next j
+        ' 総計
+        Cells(16 + i * 8, 27) = WorksheetFunction.Sum(Range(Cells(16 + i * 8, 3), Cells(16 + i * 8, 26)))  ' 着信数
+        Cells(17 + i * 8, 27) = WorksheetFunction.Sum(Range(Cells(17 + i * 8, 3), Cells(17 + i * 8, 26)))  '応答数
+        Cells(18 + i * 8, 27) = WorksheetFunction.Sum(Range(Cells(18 + i * 8, 3), Cells(18 + i * 8, 26)))  ' 呼損数
+        If Cells(16 + i * 8, 27) <> 0 Then
+            Cells(19 + i * 8, 27) = Cells(17 + i * 8, 27) / Cells(16 + i * 8, 27)  ' 応答率
+        Else
+            Cells(19 + i * 8, 27) = "-"
+        End If
+    Next i
+    
+    If LastDayOfMonth <> 31 Then
+        For i = LastDayOfMonth + 1 To 31
+            Cells(14 + i * 8, 2) = Tsuki & "月"
+        
+            For j = 0 To 24
+                Cells(16 + i * 8, 3 + j) = "-"  ' 着信数
+                Cells(17 + i * 8, 3 + j) = "-"  '応答数
+                Cells(18 + i * 8, 3 + j) = "-"  ' 呼損数
+                Cells(19 + i * 8, 3 + j) = "-"  ' 応答率
+            Next j
+        Next i
+    End If
+    
+    ' 日別集計
+    For i = 1 To 31
+        Range(Cells(16 + i * 8, 27), Cells(19 + i * 8, 27)).Copy
+        Cells(6, 2 + i).Select
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    Next i
+    ' 総計
+    Cells(6, 34) = WorksheetFunction.Sum(Range(Cells(6, 3), Cells(6, 2 + LastDayOfMonth)))  ' 着信数
+    Cells(7, 34) = WorksheetFunction.Sum(Range(Cells(7, 3), Cells(7, 2 + LastDayOfMonth)))  '応答数
+    Cells(8, 34) = WorksheetFunction.Sum(Range(Cells(8, 3), Cells(8, 2 + LastDayOfMonth)))  ' 呼損数
+    If Cells(6, 34) <> 0 Then
+        Cells(9, 34) = Cells(7, 34) / Cells(6, 34)  ' 応答率
+    Else
+        Cells(9, 34) = "-"
+    End If
+    
+    ' 時間別集計
+    For i = 1 To LastDayOfMonth
+        For j = 0 To 23
+            CountArray(0, j, 0) = CountArray(0, j, 0) + Cells(16 + i * 8, 3 + j)  ' １番目の引数（日付）0に、時間別の集計結果を入れる
+            CountArray(0, j, 1) = CountArray(0, j, 1) + Cells(18 + i * 8, 3 + j)
+        Next j
+    Next i
+    
+    ' 時間別集計に転記
+    For j = 0 To 23
+        Cells(14, 3 + j) = CountArray(0, j, 0)  ' 着信数
+        Cells(15, 3 + j) = CountArray(0, j, 0) - CountArray(0, j, 1)  '応答数
+        Cells(16, 3 + j) = CountArray(0, j, 1)  ' 呼損数
+        If CountArray(0, j, 0) <> 0 Then
+            Cells(17, 3 + j) = Cells(15, 3 + j) / CountArray(0, j, 0)  ' 応答率
+        Else
+            Cells(17, 3 + j) = "-"
+        End If
+    Next j
+    ' 時間別集計の総計
+    Cells(14, 27) = WorksheetFunction.Sum(Range(Cells(14, 3), Cells(14, 26)))
+    Cells(15, 27) = WorksheetFunction.Sum(Range(Cells(15, 3), Cells(15, 26)))
+    Cells(16, 27) = WorksheetFunction.Sum(Range(Cells(16, 3), Cells(16, 26)))
+    If Cells(14, 27) <> 0 Then
+        Cells(17, 27) = Cells(15, 27) / Cells(14, 27)  ' 応答率
+    Else
+        Cells(17, 27) = "-"
+    End If
+    
+    ' 応答率ワースト３のセルに色を付ける
+    Worst1 = 0
+    Worst2 = 0
+    Worst3 = 0
+    For i = 1 To LastDayOfMonth  ' 応答率ワースト１を探すが、同率ワースト１があるかもしれない
+        If Cells(9, 2 + i) = WorksheetFunction.Small(Range(Cells(9, 3), Cells(9, 2 + LastDayOfMonth)), 1) Then
+            If Worst1 = 0 Then
+                Worst1 = i  ' ワースト１
+                Cells(9, 2 + i).Interior.Color = RGB(255, 97, 97)
+            ElseIf Worst2 = 0 Then
+                Worst2 = i  ' 同率ワースト１なので、ワースト２に認定する
+                Cells(9, 2 + i).Interior.Color = RGB(255, 174, 133)
+                ElseIf Worst3 = 0 Then
+                    Worst3 = i  ' 同率ワースト１が３つ以上あるので、このiをワースト３に認定する
+                    Cells(9, 2 + i).Interior.Color = RGB(255, 236, 183)
+            End If
+        End If
+    Next i
+            
+    For i = 1 To LastDayOfMonth  ' 応答率ワースト２を探すが、同率ワースト２があるかもしれない
+        If Cells(9, 2 + i) = WorksheetFunction.Small(Range(Cells(9, 3), Cells(9, 2 + LastDayOfMonth)), 2) Then
+            If Worst2 = 0 Then
+                Worst2 = i  ' ワースト２
+                Cells(9, 2 + i).Interior.Color = RGB(255, 174, 133)
+            ElseIf Worst3 = 0 Then
+                Worst3 = i  ' 同率ワースト２なので、ワースト３に認定する
+                Cells(9, 2 + i).Interior.Color = RGB(255, 236, 183)
+            End If
+        End If
+    Next i
+
+    For i = 1 To LastDayOfMonth  ' 応答率ワースト３を探すが、同率ワースト３があるかもしれない
+        If Cells(9, 2 + i) = WorksheetFunction.Small(Range(Cells(9, 3), Cells(9, 2 + LastDayOfMonth)), 3) Then
+            If Worst3 = 0 Then
+                Worst3 = i  ' ワースト３
+                Cells(9, 2 + i).Interior.Color = RGB(255, 236, 183)
+            End If
+        End If
+    Next i
+    
+    
+    ' シート"集計まとめ"に結果をコピーする
+    Sheets("集計まとめ").Select
+    Cells(2, 2) = "○○様　" & Nen & "年" & Tsuki & "月度　応答率"
+    
+    Rows("5:18").Delete
+    Worksheets("集計詳細").Range("B4:AH17").Copy Sheets("集計まとめ").Range("B5")
+    
+    
+    ' シート"ワーストデイ"に結果をコピーする
+    Sheets("ワーストデイ").Select
+    Range("B3:AA24").Delete
+    
+    Worksheets("集計詳細").Select
+    ' ワースト１
+    Range(Cells(14 + Worst1 * 8, 2), Cells(19 + Worst1 * 8, 27)).Copy Sheets("ワーストデイ").Range("B3")
+    ' ワースト２
+    Range(Cells(14 + Worst2 * 8, 2), Cells(19 + Worst2 * 8, 27)).Copy Sheets("ワーストデイ").Range("B11")
+    ' ワースト３
+    Range(Cells(14 + Worst3 * 8, 2), Cells(19 + Worst3 * 8, 27)).Copy Sheets("ワーストデイ").Range("B19")
+    
+End Sub
+
+
+
+
+Sub メイン()
+'
+' 応答率集計のための全てのコードを操作する
+'
+    Application.Run "応答率集計.xlsm!データ読み取り"
+    Application.Run "応答率集計.xlsm!データを整える"
+    Application.Run "応答率集計.xlsm!呼損を整理"
+    Application.Run "応答率集計.xlsm!集計準備"
+    Application.Run "応答率集計.xlsm!集計"
+
+    Application.CutCopyMode = False
+    Worksheets("集計詳細").Range("B4").Select
+    MsgBox "データの読み取り、集計が完了しました！" & vbCrLf & "　　　　　 ヾ(*ﾟ∀ﾟ*)ﾉ"
+    
+End Sub
+

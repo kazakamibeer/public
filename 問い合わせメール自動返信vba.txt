@@ -1,0 +1,114 @@
+Private Sub Application_NewMailEx(ByVal EntryIDCollection As String)
+    Dim ns As Outlook.NameSpace
+    Dim Item As Outlook.MailItem
+    Dim CustomerName As String
+    Dim CustomerAddress As String
+    Dim Bukken As String
+    Dim Moyori As String
+    Dim Chinryo As String
+    Dim Shousai As String
+    Dim NewMail As Outlook.MailItem
+    
+    ' OutlookのNamespaceを取得
+    Set ns = Application.GetNamespace("MAPI")
+    
+    For Each EntryID In Split(EntryIDCollection, ",")
+        Set Item = ns.GetItemFromID(EntryID)
+        
+        ' メール送信者のアドレスを取得
+        Dim SenderAddress As String
+        SenderAddress = Item.SenderEmailAddress
+        
+        ' 送信者が "system@jds.suumo.jp" の場合にのみ自動返信
+        If SenderAddress = "kazakamibeer@gmail.com" Then
+            
+            ' メール本文を取得
+            Dim MailBody As String
+            MailBody = Item.Body
+            
+            ' "名前（漢字）："の後のテキストを抽出
+            CustomerName = ExtractTextAfterKeyword(MailBody, "名前（漢字）：")
+            
+            ' "メールアドレス："の後のテキストを抽出し、不要な部分を削除
+            CustomerAddress = ExtractTextAfterKeyword(MailBody, "メールアドレス：")
+            CustomerAddress = ExtractEmailAddress(CustomerAddress)
+            
+            ' 物件の情報を読み取る
+            Bukken = ExtractTextAfterKeyword(MailBody, "物件名：")
+            Moyori = ExtractTextAfterKeyword(MailBody, "最寄り駅：")
+            Chinryo = ExtractTextAfterKeyword(MailBody, "賃料：")
+            Shosai = ExtractTextAfterKeyword(MailBody, "物件詳細画面：")
+            
+            ' 新しいメールを作る
+            Set NewMail = Application.CreateItem(olMailItem)
+            NewMail.BodyFormat = olFormatHTML ' HTML形式を設定
+            
+            ' 送信メールの件名を設定
+            NewMail.Subject = "＜お問い合わせ物件＞ご紹介可能です！"
+            
+            ' 送信メールの本文を設定
+            If Weekday(Now) = 4 Then '水曜日は4
+                ' 水曜日の場合のメッセージ
+                NewMail.HTMLBody = Application.CreateItemFromTemplate("C:\Users\okamoto\Desktop\定休日テンプレート.oft").HTMLBody
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "CustomerName", CustomerName)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Bukken", Bukken)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Moyori", Moyori)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Chinryo", Chinryo)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Shosai", "<a href=""" & Shosai & """ target=""_blank"">" & Shosai & "</a>")
+                
+            Else
+                ' それ以外の日のメッセージ
+                NewMail.HTMLBody = Application.CreateItemFromTemplate("C:\Users\okamoto\Desktop\追客テンプレート.oft").HTMLBody
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "CustomerName", CustomerName)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Bukken", Bukken)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Moyori", Moyori)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Chinryo", Chinryo)
+                NewMail.HTMLBody = Replace(NewMail.HTMLBody, "Shosai", "<a href=""" & Shosai & """ target=""_blank"">" & Shosai & "</a>")
+
+            End If
+            
+            ' HTML本文の文字エンコーディングをUTF-8に設定する
+            NewMail.HTMLBody = "<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"">" & NewMail.HTMLBody
+            
+            ' 送信メールの宛先を設定
+            NewMail.To = CustomerAddress
+            
+            ' 送信メールを送信
+            NewMail.Send
+            
+            ' オブジェクトを解放
+            Set NewMail = Nothing
+        End If
+    Next EntryID
+End Sub
+
+Function ExtractTextAfterKeyword(text As String, keyword As String) As String
+    Dim pos As Long
+    Dim result As String
+    pos = InStr(text, keyword)
+    If pos > 0 Then
+        result = Mid(text, pos + Len(keyword))
+        ' 改行文字までの部分を取得
+        pos = InStr(result, vbCrLf)
+        If pos > 0 Then
+            result = Left(result, pos - 1)
+        End If
+        ExtractTextAfterKeyword = Trim(result)
+    Else
+        ExtractTextAfterKeyword = ""
+    End If
+End Function
+
+Function ExtractEmailAddress(emailAddress As String) As String
+    ' "<" の位置を検索
+    Dim posStart As Long
+    posStart = InStr(emailAddress, "<")
+    
+    If posStart > 0 Then
+        ' "<" が見つかった場合、"<" の前までの部分を取得
+        ExtractEmailAddress = Trim(Mid(emailAddress, 1, posStart - 2))
+    Else
+        ' "<" が見つからない場合、元の文字列をそのまま返す
+        ExtractEmailAddress = Trim(emailAddress)
+    End If
+End Function
