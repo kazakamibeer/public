@@ -1,7 +1,8 @@
 【コード.gs】
-const CHANNEL_ACCESS_TOKEN = 'ceWesLFSrUHfImHQSd0bHyP0UDPzxd4JI/QnJ4iDSJA317R3EZLXTh3M9O0LymdMrE2KfFI9yKF9R/YGiB9xseOo8UdWBOFnJnTLuBp0ZYvqlcsKSwWzr1WNH4hvJ35pGTg1WqLyfSLL0fLq6s0n9QdB04t89/1O/w1cDnyilFU=';
-const GOOGLE_DRIVE_FOLDER_ID = '1E02fOTfn5_GW3OQpCBy-BST8-ctOLk1Z'; // 親フォルダ（'Personal Folders'）のID
-const TemplateID = '1c4OR8S6-SowSdhu62tOpIBiG8uN4PuSSjogUQ5wWVyE'; // 見積書テンプレのファイルID
+// 以下3行のIDは6文字を秘匿させてもらいます。
+const CHANNEL_ACCESS_TOKEN = '******FSrUHfImHQSd0bHyP0UDPzxd4JI/QnJ4iDSJA317R3EZLXTh3M9O0LymdMrE2KfFI9yKF9R/YGiB9xseOo8UdWBOFnJnTLuBp0ZYvqlcsKSwWzr1WNH4hvJ35pGTg1WqLyfSLL0fLq6s0n9QdB04t89/1O/w1cDnyilFU=';
+const GOOGLE_DRIVE_FOLDER_ID = '******Tfn5_GW3OQpCBy-BST8-ctOLk1Z'; // 親フォルダ（'Personal Folders'）のID
+const TemplateID = '******S6-SowSdhu62tOpIBiG8uN4PuSSjogUQ5wWVyE'; // 見積書テンプレのファイルID
 
 const SS = SpreadsheetApp.getActiveSpreadsheet(); // Spreadsheet"LINEから見積書"
 const Lsheet = SS.getSheetByName("事業地一覧"); // 事業地一覧（ロケーション）シートのID
