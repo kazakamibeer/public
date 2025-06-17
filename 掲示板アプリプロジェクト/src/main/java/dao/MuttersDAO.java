@@ -12,7 +12,7 @@ import model.Mutter;
 
 public class MuttersDAO {
 	// データベース接続に使用する情報
-	private final String JDBC_URL = "jdbc:h2:tcp://localhost/~/dokoTsubu";
+	private final String JDBC_URL = "jdbc:h2:tcp://localhost/~/forum";
 	private final String DB_USER = "sa";
 	private final String DB_PASS = "";
 	
