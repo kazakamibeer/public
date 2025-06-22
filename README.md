@@ -4,21 +4,25 @@
 
 # ファイル一覧
 ### 詳細は下記各ファイルの段落をご覧ください。
-- Kaggleデータ分析処理のコード（Notebook）  
+- ディープラーニングによる株価予測コード（Notebook）  
+　　"stock_price_prediction.ipynb" [詳細](stock_price_prediction.ipynb)  
+　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)
+- Kaggleデータ分析処理コード（Notebook）  
 　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細](titanic-a-set-of-fundamental-analyses.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)
-- Kaggleデータ分析処理のコード（Python）  
+- Kaggleデータ分析処理コード（Python）  
 　　"titanic_code_only.py" [詳細](titanic_code_only.py)
-- LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）  
+- LINE・スプレッドシート連携アプリコード（JavaScript, GAS）  
 　　"LINEから見積書.txt"[詳細](LINEから見積書.txt)  
-- ExcelVBAビッグデータ処理コード  
+- ExcelVBAビッグデータ処理コード（VBA）  
 　　"vba_code_only.txt"[詳細](vba_code_only.txt)
-- OutlookVBAメール自動返信のコード  
+- OutlookVBAメール自動返信コード（VBA）  
 　　"問い合わせメール自動返信vba.txt"[詳細](問い合わせメール自動返信vba.txt) 
 - Java掲示板アプリのコード（Java）  
 　　"掲示板アプリプロジェクト"[詳細](掲示板アプリプロジェクト)
   
-# Kaggleデータ分析処理のコード（Python3）
+# ディープラーニングによる株価予測コード（Notebook）
+# Kaggleデータ分析処理コード（Python3）
 国際的なデータ分析コンペティションのプラットフォームであるKaggleの入門コンペ【Titanic - Machine Learning from Disaster】での分析です。   
 簡単にではありますが、データ分析と機械学習・ディープラーニングの処理をNotebookに記してあります。    
 NotebookではなくPython3のコードのみのファイルも公開しております。  
@@ -27,7 +31,7 @@ NotebookではなくPython3のコードのみのファイルも公開してお�
 | Kaggleデータ分析Notebook | [詳細](titanic-a-set-of-fundamental-analyses.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) |
 | Kaggleデータ分析PythonCode | [詳細](titanic_code_only.py) | | |
   
-# LINE・スプレッドシート連携アプリのコード（JavaScript, GAS）
+# LINE・スプレッドシート連携アプリコード（JavaScript, GAS）
 前職で作ったLINE・スプレッドシート連携アプリのコードです。  
 　　"LINEから見積書.txt"[詳細](LINEから見積書.txt)
 LINEでの入力により現場画像付きの見積書をすばやく作成し、PDFファイルとして取引先に送付することができます。  
@@ -50,7 +54,7 @@ LINEでの入力により現場画像付きの見積書をすばやく作成し�
 そのメールの内容を読み取り、瞬時に問い合わせ相手のお客様に問い合わせ結果のメールを送信します。  
 お客様は数社・数物件に同時に問い合わせを入れることが多く、秒を争う返信合戦になりますが、そのための自動返信コードです。  
   
-# Java掲示板アプリのコード（Java）  
+# Java掲示板アプリコード（Java）  
 Javaの現時点での知識のまとめとして、サーブレットによる掲示板アプリを作成しました。  
 Tomcatのサーバーにメッセージの情報を入れ、ログイン、メッセージを表示・削除などの機能を付けました。  
 Eclipseでのフォルダ構成に合わせています。以下のリンクでプロジェクトフォルダに移動します。  
