@@ -7,6 +7,8 @@
 - ディープラーニングによる株価予測コード（Notebook）  
 　　"stock_price_prediction.ipynb" [詳細](stock_price_prediction.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)
+- ディープラーニングによる株価予測コード（Python）  
+　　"stock_price_prediction.py" [詳細](stock_price_prediction.py)
 - Kaggleデータ分析処理コード（Notebook）  
 　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細](titanic-a-set-of-fundamental-analyses.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)
@@ -22,6 +24,24 @@
 　　"掲示板アプリプロジェクト"[詳細](掲示板アプリプロジェクト)
   
 # ディープラーニングによる株価予測コード（Notebook）
+未完成（40%）  
+このNotebookでは株価など時系列データの未来予測をしています。  
+いずれは自動売買の予想モデルとして使用したいと考えております。  
+#### 論文を参考にした以下の５つのモデルでそれぞれ予測を行う
+- LSTM
+- Bidirectional LSTM + Attention
+- Transformer
+- Informer
+- Autoformer
+#### ５つのモデルの精度を考慮しつつ、結果をアンサンブルする
+上記５モデルが未完成のため、現状は机上の空論のみで簡易なコードを作成。  
+５モデルの出力に加えて、相関・逆相関のある金融の指数を特徴量として加えることを予定。  
+アンサンブルのメタモデルには、学習性能を弱めたRandomForestを使用予定。  
+| 内容 | ファイル名 | Colab | Kaggle |
+| :-- | :-- | :-- | :-- | 
+| ディープラーニングによる株価予測Notebook | [詳細](stock_price_prediction.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/stock_price_prediction.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/stock_price_prediction.ipynb) |
+| ディープラーニングによる株価予測PythonCode | [詳細](stock_price_prediction.py) | | |
+  
 # Kaggleデータ分析処理コード（Python3）
 国際的なデータ分析コンペティションのプラットフォームであるKaggleの入門コンペ【Titanic - Machine Learning from Disaster】での分析です。   
 簡単にではありますが、データ分析と機械学習・ディープラーニングの処理をNotebookに記してあります。    
