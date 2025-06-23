@@ -37,7 +37,7 @@
 上記５モデルが未完成のため、現状は机上の空論のみで簡易なコードを作成。  
 ５モデルの出力に加えて、相関・逆相関のある金融の指数を特徴量として加えることを予定。  
 アンサンブルのメタモデルには、学習性能を弱めたRandomForestを使用予定。  
-| 内容 | ファイル名 | Colab | Kaggle |
+| 内容 | アクセス | Colab | Kaggle |
 | :-- | :-- | :-- | :-- | 
 | ディープラーニングによる株価予測Notebook | [詳細](stock_price_prediction.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/stock_price_prediction.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/stock_price_prediction.ipynb) |
 | ディープラーニングによる株価予測PythonCode | [詳細](stock_price_prediction.py) | | |
@@ -46,7 +46,7 @@
 国際的なデータ分析コンペティションのプラットフォームであるKaggleの入門コンペ【Titanic - Machine Learning from Disaster】での分析です。   
 簡単にではありますが、データ分析と機械学習・ディープラーニングの処理をNotebookに記してあります。    
 NotebookではなくPython3のコードのみのファイルも公開しております。  
-| 内容 | ファイル名 | Colab | Kaggle |
+| 内容 | アクセス | Colab | Kaggle |
 | :-- | :-- | :-- | :-- | 
 | Kaggleデータ分析Notebook | [詳細](titanic-a-set-of-fundamental-analyses.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) | [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb) |
 | Kaggleデータ分析PythonCode | [詳細](titanic_code_only.py) | | |
