@@ -7,12 +7,12 @@
 - ディープラーニングによる株価予測コード（Notebook）  
 　　"stock_price_prediction.ipynb" [詳細](stock_price_prediction.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/stock_price_prediction.ipynb)
-- ディープラーニングによる株価予測コード（Python）  
+- ディープラーニングによる株価予測コード（Python3）  
 　　"stock_price_prediction.py" [詳細](stock_price_prediction.py)
 - Kaggleデータ分析処理コード（Notebook）  
 　　"titanic-a-set-of-fundamental-analyses.ipynb" [詳細](titanic-a-set-of-fundamental-analyses.ipynb)  
 　　　[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)　[![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://kaggle.com/kernels/welcome?src=https://github.com/kazakamibeer/public/blob/main/titanic-a-set-of-fundamental-analyses.ipynb)
-- Kaggleデータ分析処理コード（Python）  
+- Kaggleデータ分析処理コード（Python3）  
 　　"titanic_code_only.py" [詳細](titanic_code_only.py)
 - LINE・スプレッドシート連携アプリコード（JavaScript, GAS）  
 　　"LINEから見積書.txt"[詳細](LINEから見積書.txt)  
@@ -23,7 +23,7 @@
 - Java掲示板アプリのコード（Java）  
 　　"掲示板アプリプロジェクト"[詳細](掲示板アプリプロジェクト)
   
-# ディープラーニングによる株価予測コード（Notebook）
+# ディープラーニングによる株価予測コード（Python3）
 未完成（40%）  
 このNotebookでは株価など時系列データの未来予測をしています。  
 いずれは自動売買の予想モデルとして使用したいと考えております。  
